@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <metadata xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <id>Get</id>
+    <version>0.0.0</version>
+    <authors>Derek Greer</authors>
+    <owners>Derek Greer</owners>
+    <licenseUrl>https://github.com/derekgreer/get/raw/master/license.txt</licenseUrl>
+    <projectUrl>http://github.com/derekgreer/get</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A tool for managing application level dependencies using NuGet.</description>
+    <tags>dependency-management</tags>
+  </metadata>
+  <files>
+	<file src="build\merge\Get.exe" target="tools" />
+  </files>
+</package>
