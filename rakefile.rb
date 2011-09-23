@@ -2,7 +2,7 @@ require 'rubygems'
 require 'albacore'
 require 'configatron'
 
-MSBUILD_PATH = "C:/Windows/Microsoft.NET/Framework/v4.0.30319/"
+FRAMEWORK_PATH = "C:/Windows/Microsoft.NET/Framework/v4.0.30319/"
 BUILD_PATH = File.expand_path('build')
 MERGE_PATH = "#{BUILD_PATH}/merge"
 TOOLS_PATH = File.expand_path('tools')
@@ -33,13 +33,14 @@ namespace :build do
 	task :compile => [:versioning] do
 
 		mkdir "#{BUILD_PATH}"
-		sh "#{MSBUILD_PATH}msbuild.exe /p:Configuration=#{COMPILE_TARGET} #{SOLUTION}"
+		sh "#{FRAMEWORK_PATH}msbuild.exe /p:Configuration=#{COMPILE_TARGET} #{SOLUTION}"
 		copyOutputFiles "src/Get/bin/#{COMPILE_TARGET}", "*.{exe,dll,pdb}", "#{BUILD_PATH}"
 	end
 
 	task :merge do
         mkdir_p "#{MERGE_PATH}"
-        sh "#{TOOLS_PATH}/ILMerge/ILMerge.exe /out:#{MERGE_PATH}\\Get.exe #{BUILD_PATH}\\Get.exe #{BUILD_PATH}\\NDesk.Options.dll"
+		assemblies = FileList.new("#{BUILD_PATH}/*.dll")
+        sh "#{TOOLS_PATH}/ILMerge/ILMerge.exe /targetplatform:v4 /lib:#{FRAMEWORK_PATH}WPF /out:#{MERGE_PATH}\\Get.exe #{BUILD_PATH}\\Get.exe #{assemblies}"
     end
 
 	task :tests do

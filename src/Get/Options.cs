@@ -11,11 +11,13 @@ namespace Get
             Sources = new List<string>();
             bool showHelp = false;
 
+            SetDefaults();
+
             var optionSet = new OptionSet
                                 {
                                     {"o|OutputDirectory=", "The destination folder.", x => OutputDirectory = x},
-                                    {"s|Source=", "A repository source.", x => Sources.Add(x)},
-                                    { "x|ExcludeVersion", "Omit version number from destination folders." , x => ExcludeVersion = x != null },
+                                    {"s|source=", "A repository source.", x => Sources.Add(x)},
+                                    {"x|ExcludeVersion", "Omit version number from destination folders." , x => ExcludeVersion = x != null },
                                     {"h|Help", "Show this message and exit.", x => showHelp = x != null},
                                 };
 
@@ -32,6 +34,11 @@ namespace Get
             {
                 Sources.Add("http://packages.nuget.org/v1/FeedService.svc");
             }
+        }
+
+        void SetDefaults()
+        {
+            OutputDirectory = ".";
         }
 
         public bool ExcludeVersion { get; set; }

@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+using NuGet;
 
 namespace Get
 {
     public class Engine
     {
-        string _nuGetPath;
         Options _options;
 
         public int Process(string[] args)
@@ -25,37 +23,10 @@ namespace Get
 
             string dependencyFile = args[0];
 
-            _nuGetPath = GetNuGetPath();
-
-            if (_nuGetPath == null)
-            {
-                Console.WriteLine("Could not locate NuGet.exe.");
-                return -1;
-            }
-
+           
             _options = new Options(args.Skip(1));
             ProcessPackagesFile(dependencyFile);
             return 0;
-        }
-
-        string GetNuGetPath()
-        {
-            return GetFullPath(Path.Combine(Environment.GetEnvironmentVariable("NUGET_PATH") ?? "", "NuGet.exe"));
-        }
-
-        public static string GetFullPath(string fileName)
-        {
-            if (File.Exists(fileName))
-                return Path.GetFullPath(fileName);
-
-            string values = Environment.GetEnvironmentVariable("PATH");
-            foreach (string path in values.Split(';'))
-            {
-                string fullPath = Path.Combine(path, fileName);
-                if (File.Exists(fullPath))
-                    return fullPath;
-            }
-            return null;
         }
 
         void ProcessPackagesFile(string dependencyFile)
@@ -64,71 +35,64 @@ namespace Get
 
             foreach (Package package in packages)
             {
-                string path = Path.Combine(_options.OutputDirectory ?? "", package.Id);
-                
-                if(!_options.ExcludeVersion)
-                {
-                    path = path + "." + package.Version;
-                }
-
-                if (!Directory.Exists(path))
-                {
+                if (!PackageExists(package))
                     RetrievePackage(package);
-                }
             }
+        }
+
+        bool PackageExists(Package package)
+        {
+            string path = Path.Combine(_options.OutputDirectory ?? "", package.Id);
+
+            if (!_options.ExcludeVersion)
+            {
+                path = path + "." + package.Version;
+            }
+
+            return Directory.Exists(path);
         }
 
         void RetrievePackage(Package package)
         {
             foreach (string source in _options.Sources)
             {
-                RetrievePackage(package, source);
+                PackageManager packageManager = GetPackageManager(source);
+
+                packageManager.InstallPackage(package.Id, new Version(package.Version));
+
+                if (PackageExists(package))
+                {
+                    break;
+                }
             }
         }
 
-        void RetrievePackage(Package package, string source)
+        IDictionary<string, PackageManager> _packageManagers = new Dictionary<string, PackageManager>();
+
+        PackageManager GetPackageManager(string source)
         {
-            var p = new Process();
-
-            var sb = new StringBuilder();
-            sb.Append(string.Format("install {0} ", package.Id));
-            if (!string.IsNullOrEmpty(package.Version))
+            if(_packageManagers.ContainsKey(source))
             {
-                sb.Append(string.Format("-Version {0} ", package.Version));
-            }
-            sb.Append(string.Format("-Source {0} ", source));
-            if (!string.IsNullOrEmpty(_options.OutputDirectory))
-            {
-                sb.Append(string.Format("-OutputDirectory {0} ", _options.OutputDirectory));
-            }
-            if(_options.ExcludeVersion)
-            {
-                sb.Append("-ExcludeVersion ");
+                return _packageManagers[source];
             }
 
+            IPackageRepository packageRepository = PackageRepositoryFactory.Default.CreateRepository(source);
+            var packageManager = new PackageManager(packageRepository,
+                                                    new DefaultPackagePathResolver(_options.OutputDirectory, !_options.ExcludeVersion),
+                                                    new PhysicalFileSystem(_options.OutputDirectory));
 
-            var startInfo =
-                new ProcessStartInfo(_nuGetPath, sb.ToString());
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;
-            startInfo.UseShellExecute = false;
+            packageManager.Logger = new ConsoleLogger();
             
-            p.StartInfo = startInfo;
-            p.Start();
+            _packageManagers.Add(source, packageManager);
 
-            string stdout = p.StandardOutput.ReadToEnd();
-            string stderr = p.StandardError.ReadToEnd();
-            Console.Write(stdout);
-            Console.Write(stderr);
+            return packageManager;
         }
 
         IEnumerable<Package> GetPackages(string dependencyFile)
         {
             var dependencies = new List<Package>();
 
-            using (
-                StreamReader sr = File.OpenText(dependencyFile)
-                )
+            using (StreamReader sr = File.OpenText(dependencyFile))
             {
                 string line = "";
                 while ((line = sr.ReadLine()) != null)
@@ -143,8 +107,7 @@ namespace Get
                     dependencies.Add(new Package(fields[0], fields[1]));
                 }
             }
-            return
-                dependencies;
+            return dependencies;
         }
     }
 }
